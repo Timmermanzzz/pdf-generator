@@ -30,6 +30,54 @@ paths:
           description: Ongeldige of ontbrekende API-sleutel
         '400':
           description: Ongeldige aanvraag
+  /generate_pdf_url:
+    post:
+      operationId: generatePdfUrl
+      summary: Genereer een PDF-bestand met downloadlink
+      description: Genereert een PDF-bestand met de opgegeven tekst en retourneert een tijdelijke downloadlink
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfRequest'
+      responses:
+        '200':
+          description: PDF-bestand gegenereerd met downloadlink
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfUrlResponse'
+        '401':
+          description: Ongeldige of ontbrekende API-sleutel
+        '400':
+          description: Ongeldige aanvraag
+  /download_pdf/{pdf_id}:
+    get:
+      operationId: downloadPdf
+      summary: Download een gegenereerde PDF
+      description: Download een eerder gegenereerde PDF via de unieke ID
+      parameters:
+        - name: pdf_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: De unieke ID van de PDF
+      responses:
+        '200':
+          description: PDF-bestand
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: PDF niet gevonden
+        '410':
+          description: PDF is verlopen
   /health:
     get:
       operationId: healthCheck
@@ -67,6 +115,22 @@ components:
         pdf_data:
           type: string
           description: De base64-gecodeerde inhoud van het PDF-bestand
+    PdfUrlResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Geeft aan of de PDF-generatie succesvol was
+        filename:
+          type: string
+          description: De naam van het gegenereerde PDF-bestand
+        download_url:
+          type: string
+          description: De URL om de PDF te downloaden
+        expires_at:
+          type: string
+          format: date-time
+          description: De datum en tijd waarop de downloadlink verloopt
     HealthResponse:
       type: object
       properties:

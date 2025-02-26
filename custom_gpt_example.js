@@ -1,8 +1,8 @@
 // Voorbeeld van hoe een Custom GPT de PDF-generator API kan gebruiken
 // Dit is een voorbeeld van code die je kunt gebruiken in je Custom GPT
 
-// Functie om een PDF te genereren met de API
-async function generatePDF(text) {
+// Functie om een PDF te genereren met de API (base64-methode)
+async function generatePDFWithBase64(text) {
   try {
     const response = await fetch('https://pdf-generator-hril.onrender.com/generate_pdf', {
       method: 'POST',
@@ -38,27 +38,65 @@ async function generatePDF(text) {
   }
 }
 
+// Functie om een PDF te genereren met de API (downloadlink-methode)
+async function generatePDFWithDownloadLink(text) {
+  try {
+    const response = await fetch('https://pdf-generator-hril.onrender.com/generate_pdf_url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': 'jouw_api_sleutel' // Vervang dit door je echte API-sleutel
+      },
+      body: JSON.stringify({ text: text })
+    });
+
+    // Verwerk de JSON-respons
+    const data = await response.json();
+    
+    if (data.success) {
+      // De downloadlink is beschikbaar in data.download_url
+      return {
+        success: true,
+        message: "PDF succesvol gegenereerd!",
+        filename: data.filename,
+        downloadUrl: data.download_url,
+        expiresAt: data.expires_at
+      };
+    } else {
+      return {
+        success: false,
+        message: "Er is een fout opgetreden bij het genereren van de PDF."
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: `Er is een fout opgetreden: ${error.message}`
+    };
+  }
+}
+
 // Voorbeeld van hoe je de functie kunt gebruiken in je Custom GPT
 async function handlePDFRequest(userText) {
-  // Genereer de PDF
-  const result = await generatePDF(userText);
+  // Genereer de PDF met downloadlink
+  const result = await generatePDFWithDownloadLink(userText);
   
   if (result.success) {
     // Hier kun je de gebruiker informeren dat de PDF is gegenereerd
-    // Je kunt ook een link aanbieden om de PDF te downloaden of te bekijken
+    // en een downloadlink aanbieden
+    
+    // Formatteer de vervaldatum
+    const expiryDate = new Date(result.expiresAt);
+    const formattedExpiryDate = expiryDate.toLocaleString();
     
     // Voorbeeld van een bericht aan de gebruiker:
     return `
-      Ik heb een PDF gegenereerd met je tekst!
+      De PDF-generatie is gelukt! ✅
       
-      De PDF is klaar om te downloaden. Je kunt de volgende base64-gecodeerde string gebruiken om de PDF te bekijken of op te slaan:
+      Je kunt de gegenereerde PDF downloaden via deze link:
+      [Download PDF](${result.downloadUrl})
       
-      Bestandsnaam: ${result.filename}
-      
-      Je kunt deze base64-string converteren naar een PDF met online tools of door code te gebruiken.
-      
-      Hier is een korte base64-preview (eerste 100 tekens):
-      ${result.pdfData.substring(0, 100)}...
+      Let op: Deze link verloopt op ${formattedExpiryDate}.
     `;
   } else {
     // Informeer de gebruiker over de fout
