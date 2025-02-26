@@ -81,25 +81,13 @@ def generate_pdf_url():
 
     text = data['text']
     
-    pdf = PDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, text)
-    
-    # Genereer unieke bestandsnaam
+    # Genereer een unieke ID voor deze PDF
     pdf_id = str(uuid.uuid4())
-    filename = f"{pdf_id}.pdf"
-    filepath = os.path.join(TEMP_DIR, filename)
     
-    # Sla PDF op als bestand
-    pdf_content = pdf.output(dest='S')
-    with open(filepath, 'wb') as f:
-        f.write(pdf_content.encode('latin-1'))
-    
-    # Sla informatie op met verlooptijd (bijv. 1 uur)
+    # Sla alleen de tekst op in het geheugen
     expiry_time = datetime.now() + timedelta(hours=1)
     temp_pdfs[pdf_id] = {
-        'filepath': filepath,
+        'text': text,
         'expires_at': expiry_time
     }
     
@@ -121,27 +109,34 @@ def download_pdf(pdf_id):
         return jsonify({"error": "PDF niet gevonden"}), 404
         
     if datetime.now() > temp_pdfs[pdf_id]['expires_at']:
-        # Verwijder verlopen PDF
-        try:
-            filepath = temp_pdfs[pdf_id]['filepath']
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            del temp_pdfs[pdf_id]
-        except Exception as e:
-            print(f"Fout bij het verwijderen van verlopen PDF: {str(e)}")
+        # Verwijder verlopen PDF-informatie
+        del temp_pdfs[pdf_id]
         return jsonify({"error": "PDF is verlopen"}), 410
     
-    filepath = temp_pdfs[pdf_id]['filepath']
-    
-    # Controleer of het bestand daadwerkelijk bestaat
-    if not os.path.exists(filepath):
-        print(f"Bestand niet gevonden: {filepath}")
-        return jsonify({"error": "PDF-bestand niet gevonden op de server"}), 404
+    # Haal de tekst op en genereer de PDF on-the-fly
+    text = temp_pdfs[pdf_id]['text']
     
     try:
-        return send_file(filepath, as_attachment=True, download_name="output.pdf", mimetype="application/pdf")
+        # Genereer de PDF direct in het geheugen
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, text)
+        
+        # Output naar BytesIO
+        pdf_content = pdf.output(dest='S')
+        pdf_buffer = BytesIO(pdf_content.encode('latin-1'))
+        pdf_buffer.seek(0)
+        
+        # Stuur het bestand direct naar de gebruiker
+        return send_file(
+            pdf_buffer, 
+            as_attachment=True, 
+            download_name="output.pdf", 
+            mimetype="application/pdf"
+        )
     except Exception as e:
-        print(f"Fout bij het verzenden van het bestand: {str(e)}")
+        print(f"Fout bij het genereren of verzenden van de PDF: {str(e)}")
         return jsonify({"error": f"Fout bij het downloaden van de PDF: {str(e)}"}), 500
 
 @app.route('/health', methods=['GET'])
@@ -152,33 +147,22 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 def cleanup_expired_pdfs():
-    """Verwijder verlopen PDF's"""
+    """Verwijder verlopen PDF's uit het geheugen"""
     now = datetime.now()
     expired_ids = [pdf_id for pdf_id, info in temp_pdfs.items() if now > info['expires_at']]
     
     for pdf_id in expired_ids:
         try:
-            filepath = temp_pdfs[pdf_id]['filepath']
-            if os.path.exists(filepath):
-                os.remove(filepath)
             del temp_pdfs[pdf_id]
+            print(f"Verlopen PDF {pdf_id} verwijderd uit geheugen")
         except Exception as e:
             print(f"Fout bij het verwijderen van verlopen PDF {pdf_id}: {str(e)}")
 
 # Bij het afsluiten van de applicatie, verwijder alle tijdelijke bestanden
 @app.teardown_appcontext
 def cleanup_temp_files(exception):
-    try:
-        # Verwijder alle bestanden in de tijdelijke map, maar behoud de map zelf
-        for filename in os.listdir(TEMP_DIR):
-            file_path = os.path.join(TEMP_DIR, filename)
-            if os.path.isfile(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    print(f"Fout bij het verwijderen van {file_path}: {str(e)}")
-    except Exception as e:
-        print(f"Fout bij cleanup: {str(e)}")
+    # Niet meer nodig omdat we geen bestanden meer opslaan
+    pass
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
