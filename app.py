@@ -25,7 +25,7 @@ temp_pdfs = {}
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'Custom GPT PDF', 0, 1, 'C')
+        self.cell(0, 10, 'Bestekplan Tuinontwerp', 0, 1, 'C')
     
     def footer(self):
         self.set_y(-15)
@@ -57,9 +57,6 @@ def generate_pdf():
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    
-    # Gebruik UTF-8 encoding voor speciale tekens
-    pdf.set_doc_option('core_fonts_encoding', 'UTF-8')
     
     pdf.multi_cell(0, 10, text)
     
@@ -132,9 +129,6 @@ def download_pdf(pdf_id):
         pdf = PDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        
-        # Gebruik UTF-8 encoding voor speciale tekens
-        pdf.set_doc_option('core_fonts_encoding', 'UTF-8')
         
         # Vervang problematische tekens
         text = text.replace('€', 'EUR ')
