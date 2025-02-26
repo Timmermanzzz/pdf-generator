@@ -43,9 +43,9 @@ def generate_pdf():
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, text)
     
-    pdf_buffer = BytesIO()
-    pdf.output(pdf_buffer)
-    pdf_buffer.seek(0)
+    # Correcte manier om BytesIO te gebruiken met FPDF
+    pdf_content = pdf.output(dest='S')
+    pdf_buffer = BytesIO(pdf_content.encode('latin-1'))
     
     return send_file(pdf_buffer, as_attachment=True, download_name="output.pdf", mimetype="application/pdf")
 
@@ -55,4 +55,5 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port) 
