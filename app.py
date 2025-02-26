@@ -50,16 +50,24 @@ def generate_pdf():
 
     text = data['text']
     
+    # Vervang problematische tekens
+    text = text.replace('€', 'EUR ')
+    text = text.replace('²', '2')
+    
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
+    
+    # Gebruik UTF-8 encoding voor speciale tekens
+    pdf.set_doc_option('core_fonts_encoding', 'UTF-8')
+    
     pdf.multi_cell(0, 10, text)
     
     # Correcte manier om BytesIO te gebruiken met FPDF
     pdf_content = pdf.output(dest='S')
     
     # Converteer PDF naar base64
-    pdf_base64 = base64.b64encode(pdf_content.encode('latin-1')).decode('utf-8')
+    pdf_base64 = base64.b64encode(pdf_content.encode('latin-1', errors='replace')).decode('utf-8')
     
     # Geef JSON-respons terug met base64-gecodeerde PDF
     return jsonify({
@@ -80,6 +88,9 @@ def generate_pdf_url():
         return jsonify({"error": "Geen tekst meegegeven"}), 400
 
     text = data['text']
+    
+    # Vervang problematische tekens niet hier, maar bij het genereren van de PDF
+    # Dit zorgt ervoor dat we de originele tekst behouden in het geheugen
     
     # Genereer een unieke ID voor deze PDF
     pdf_id = str(uuid.uuid4())
@@ -121,11 +132,19 @@ def download_pdf(pdf_id):
         pdf = PDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
+        
+        # Gebruik UTF-8 encoding voor speciale tekens
+        pdf.set_doc_option('core_fonts_encoding', 'UTF-8')
+        
+        # Vervang problematische tekens
+        text = text.replace('€', 'EUR ')
+        text = text.replace('²', '2')
+        
         pdf.multi_cell(0, 10, text)
         
         # Output naar BytesIO
         pdf_content = pdf.output(dest='S')
-        pdf_buffer = BytesIO(pdf_content.encode('latin-1'))
+        pdf_buffer = BytesIO(pdf_content.encode('latin-1', errors='replace'))
         pdf_buffer.seek(0)
         
         # Stuur het bestand direct naar de gebruiker
