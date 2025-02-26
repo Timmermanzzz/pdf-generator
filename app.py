@@ -15,8 +15,8 @@ CORS(app)  # CORS-ondersteuning toevoegen
 # Eenvoudige API-sleutel authenticatie
 API_KEY = os.environ.get('API_KEY', 'test_key')  # Standaard test_key, verander dit in productie
 
-# Map om tijdelijke PDF's op te slaan
-TEMP_DIR = os.path.join(tempfile.gettempdir(), 'pdf_generator')
+# Map om tijdelijke PDF's op te slaan - gebruik een persistente map in plaats van /tmp
+TEMP_DIR = os.path.join(os.getcwd(), 'pdf_files')
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # Opslag voor tijdelijke PDF's met verlooptijd
@@ -123,14 +123,26 @@ def download_pdf(pdf_id):
     if datetime.now() > temp_pdfs[pdf_id]['expires_at']:
         # Verwijder verlopen PDF
         try:
-            os.remove(temp_pdfs[pdf_id]['filepath'])
+            filepath = temp_pdfs[pdf_id]['filepath']
+            if os.path.exists(filepath):
+                os.remove(filepath)
             del temp_pdfs[pdf_id]
-        except:
-            pass
+        except Exception as e:
+            print(f"Fout bij het verwijderen van verlopen PDF: {str(e)}")
         return jsonify({"error": "PDF is verlopen"}), 410
     
     filepath = temp_pdfs[pdf_id]['filepath']
-    return send_file(filepath, as_attachment=True, download_name="output.pdf", mimetype="application/pdf")
+    
+    # Controleer of het bestand daadwerkelijk bestaat
+    if not os.path.exists(filepath):
+        print(f"Bestand niet gevonden: {filepath}")
+        return jsonify({"error": "PDF-bestand niet gevonden op de server"}), 404
+    
+    try:
+        return send_file(filepath, as_attachment=True, download_name="output.pdf", mimetype="application/pdf")
+    except Exception as e:
+        print(f"Fout bij het verzenden van het bestand: {str(e)}")
+        return jsonify({"error": f"Fout bij het downloaden van de PDF: {str(e)}"}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -146,22 +158,27 @@ def cleanup_expired_pdfs():
     
     for pdf_id in expired_ids:
         try:
-            os.remove(temp_pdfs[pdf_id]['filepath'])
+            filepath = temp_pdfs[pdf_id]['filepath']
+            if os.path.exists(filepath):
+                os.remove(filepath)
             del temp_pdfs[pdf_id]
-        except:
-            pass
+        except Exception as e:
+            print(f"Fout bij het verwijderen van verlopen PDF {pdf_id}: {str(e)}")
 
 # Bij het afsluiten van de applicatie, verwijder alle tijdelijke bestanden
 @app.teardown_appcontext
 def cleanup_temp_files(exception):
     try:
-        # Verwijder alle bestanden in de tijdelijke map
+        # Verwijder alle bestanden in de tijdelijke map, maar behoud de map zelf
         for filename in os.listdir(TEMP_DIR):
             file_path = os.path.join(TEMP_DIR, filename)
             if os.path.isfile(file_path):
-                os.remove(file_path)
-    except:
-        pass
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Fout bij het verwijderen van {file_path}: {str(e)}")
+    except Exception as e:
+        print(f"Fout bij cleanup: {str(e)}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
