@@ -3,6 +3,7 @@ from fpdf import FPDF
 from io import BytesIO
 from flask_cors import CORS
 import os
+import base64
 
 app = Flask(__name__)
 CORS(app)  # CORS-ondersteuning toevoegen
@@ -45,9 +46,17 @@ def generate_pdf():
     
     # Correcte manier om BytesIO te gebruiken met FPDF
     pdf_content = pdf.output(dest='S')
-    pdf_buffer = BytesIO(pdf_content.encode('latin-1'))
     
-    return send_file(pdf_buffer, as_attachment=True, download_name="output.pdf", mimetype="application/pdf")
+    # Converteer PDF naar base64
+    pdf_base64 = base64.b64encode(pdf_content.encode('latin-1')).decode('utf-8')
+    
+    # Geef JSON-respons terug met base64-gecodeerde PDF
+    return jsonify({
+        "success": True,
+        "filename": "output.pdf",
+        "content_type": "application/pdf",
+        "pdf_data": pdf_base64
+    })
 
 @app.route('/health', methods=['GET'])
 def health_check():

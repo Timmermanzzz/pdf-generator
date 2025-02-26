@@ -1,0 +1,79 @@
+openapi: 3.0.0
+info:
+  title: PDF Generator API
+  description: API voor het genereren van PDF-bestanden
+  version: 1.0.0
+servers:
+  - url: https://pdf-generator-hril.onrender.com
+paths:
+  /generate_pdf:
+    post:
+      operationId: generatePdf
+      summary: Genereer een PDF-bestand
+      description: Genereert een PDF-bestand met de opgegeven tekst en retourneert het als base64-gecodeerde string in JSON
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfRequest'
+      responses:
+        '200':
+          description: PDF-bestand gegenereerd
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfResponse'
+        '401':
+          description: Ongeldige of ontbrekende API-sleutel
+        '400':
+          description: Ongeldige aanvraag
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Controleer de status van de API
+      description: Retourneert de status van de API
+      responses:
+        '200':
+          description: API is gezond
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    PdfRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: De tekst die in de PDF moet worden opgenomen
+    PdfResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Geeft aan of de PDF-generatie succesvol was
+        filename:
+          type: string
+          description: De naam van het gegenereerde PDF-bestand
+        content_type:
+          type: string
+          description: Het MIME-type van het bestand (application/pdf)
+        pdf_data:
+          type: string
+          description: De base64-gecodeerde inhoud van het PDF-bestand
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key 
